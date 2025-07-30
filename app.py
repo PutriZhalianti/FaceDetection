@@ -8,36 +8,37 @@ Original file is located at
 """
 
 import streamlit as st
+import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.image import img_to_array
-import numpy as np
 from PIL import Image
 
 # Load model
 model = load_model("face_emotion_vgg16.h5")
 emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']
 
-# Preprocessing function
+# Tampilkan info input shape model
+model_input_shape = model.input_shape  # Misal: (None, 48, 48, 1)
+st.write("Model input shape:", model_input_shape)
+
+# Tentukan apakah input RGB atau Grayscale
+expected_channels = model_input_shape[-1]  # 1 atau 3
+
+# Fungsi preprocessing
 def preprocess_image(image):
-    image = image.convert('L')  # Grayscale
-    image = image.resize((48, 48))
-    img_array = img_to_array(image)
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array /= 255.0
+    if expected_channels == 1:
+        image = image.convert('L')  # Grayscale
+    else:
+        image = image.convert('RGB')  # RGB
+
+    image = image.resize((model_input_shape[1], model_input_shape[2]))
+    img_array = img_to_array(image)  # shape: (48, 48, 1) atau (48, 48, 3)
+    img_array = np.expand_dims(img_array, axis=0)  # shape: (1, 48, 48, 1/3)
+    img_array = img_array / 255.0
     return img_array
 
-# UI
-st.title("Deteksi Emosi Wajah")
-uploaded_file = st.file_uploader("Upload Gambar Wajah", type=["jpg", "png", "jpeg"])
+# UI Streamlit
+st.title("🎭 Deteksi Emosi Wajah")
+uploaded_file = st.file_uploader("Upload Gambar Wajah (.jpg/.png)", type=["jpg", "png", "jpeg"])
 
 if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Gambar Diupload", use_column_width=True)
-
-    # Preprocess dan prediksi
-    processed = preprocess_image(image)
-    prediction = model.predict(processed)
-    emotion = emotion_labels[np.argmax(prediction)]
-
-    st.subheader("Prediksi Emosi:")
-    st.success(emotion)
